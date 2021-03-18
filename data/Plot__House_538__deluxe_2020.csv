@@ -1,0 +1,13 @@
+version,label,value
+1,showrow,FALSE
+1,pos1,"VA,MN"
+1,pos3,DE
+1,xscale,
+1,yscale,
+1,xlimit,"-9,-3,3,9"
+1,xcolor,"red3,orange,green3,violet,blue3"
+1,xparty,"1_Solid R,2_Leans R,3_Toss-Up,4_Leans D,5_Solid D"
+1,noparty,Split by Ratio
+1,vlimit,"1,10,100,1000"
+1,vshape,"1,10,16,17,15"
+1,vdesc,"< 1k,>=    1k,>=   10k,>=  100k,>= 1000k"

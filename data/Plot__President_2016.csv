@@ -1,0 +1,25 @@
+version,label,value
+1,showrow,FALSE
+1,pos1,"KY,MD"
+1,pos3,IN
+1,xscale,NA
+1,yscale,NA
+1,xlimit,"-9,-3,3,9"
+1,xcolor,"red3,orange,green3,violet,blue3"
+1,xparty,"1_Solid R,2_Leans R,3_Toss-Up,4_Leans D,5_Solid D"
+1,noparty,Split by Ratio
+1,vlimit,"1,10,100,1000"
+1,vshape,"1,10,16,17,15"
+1,vdesc,"< 1k,>=    1k,>=   10k,>=  100k,>= 1000k"
+2,showrow,FALSE
+2,pos1,"KY,MD,NE,ND,MS,TOTAL"
+2,pos3,IN
+2,xscale,
+2,yscale,
+2,xlimit,"-9,-3,3,9"
+2,xcolor,"red3,orange,green3,violet,blue3"
+2,xparty,"1_Solid R,2_Leans R,3_Toss-Up,4_Leans D,5_Solid D"
+2,noparty,Split by Ratio
+2,vlimit,"1,10,100,1000"
+2,vshape,"1,10,16,17,15"
+2,vdesc,"< 1k,>=    1k,>=   10k,>=  100k,>= 1000k"

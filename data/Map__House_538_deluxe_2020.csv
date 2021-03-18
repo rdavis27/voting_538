@@ -1,0 +1,6 @@
+version,label,value
+1,maplimitset,Auto set balanced
+1,maplimits,"-25,25,5"
+1,mapyear,2020
+1,mapvar,MAR_SH
+1,mapcolors,RdBu
