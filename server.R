@@ -70,6 +70,29 @@ shinyServer(
             write(paste(namesxx, collapse = " "), paste0(data_dir,"President_538_2020.csv"))
             write_delim(xx, paste0(data_dir,"President_538_2020.csv"), append = TRUE, col_names = TRUE)
         }
+        createHouse538_18 <- function(model){
+            xx0 <- read_csv(paste0(input_dir,"house_district_forecast.csv"))
+            xx1 <- xx0[xx0$forecastdate == as.Date("2018-11-06"),]
+            xx <- xx1[xx1$model == model,]
+            xx$cd <- paste0(xx$state,"-",xx$district)
+            xx$party[xx$party == "D"] <- "AADEM"
+            xx$party[xx$party == "R"] <- "AAREP"
+            xx <- xx[,c("cd","party","voteshare")]
+            xx <- xx %>%
+                group_by(cd, party) %>%
+                summarize(voteshare = max(voteshare)) %>%
+                spread(party,voteshare)
+            #names(xx)[1] <- "AAAREA"
+            #oo <- order(names(xx))
+            #xx <- xx[,oo]
+            names(xx)[1:3] <- c("AREA","DEM","REP")
+            for (i in 4:NCOL(xx)){
+                names(xx)[i] <- paste0("OTH",i)
+            }
+            namesxx <- names(xx)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_538_",model,"_2018.csv"))
+            write_delim(xx, paste0(data_dir,"House_538_",model,"_2018.csv"), append = TRUE, col_names = TRUE)
+        }
         createPresident20 <- function(){
             xx0 <- read_csv(paste0(input_dir,"1976-2020-president.csv"))
             xx1 <- xx0[xx0$year == 2020,]
@@ -256,13 +279,13 @@ shinyServer(
                     else if (is.na(xx1$candidate[i]) & (is.na(xx1$writein[i]) | xx1$writein[i])){ #check NA for line 274 (4015)
                         xx$OTH[xx$AREA == xx1$state_po[i]] <- xx$OTH[xx$AREA == xx1$state_po[i]] + xx1$candidatevotes[i]
                     }
-                    else if (xx1$candidate[i] == "OVER VOTES"){
+                    else if (xx1$candidate[i] == "OVER VOTES" | xx1$candidate[i] == "OVER VOTE"){
                         xx$OVERVOTES[xx$AREA == xx1$state_po[i]] <- xx1$candidatevotes[i]
                     }
-                    else if (xx1$candidate[i] == "UNDER VOTES"){
+                    else if (xx1$candidate[i] == "UNDER VOTES" | xx1$candidate[i] == "UNDER VOTE"){
                         xx$UNDERVOTES[xx$AREA == xx1$state_po[i]] <- xx1$candidatevotes[i]
                     }
-                    else if (xx1$candidate[i] == "BLANK VOTES"){
+                    else if (xx1$candidate[i] == "BLANK VOTES" | xx1$candidate[i] == "BLANK VOTE"){
                         xx$BLANKVOTES[xx$AREA == xx1$state_po[i]] <- xx1$candidatevotes[i]
                     }
                     else{
@@ -286,6 +309,114 @@ shinyServer(
             names(xx) <- c("AREA","DEM","REP","OTH")
             write(paste(names(xx), collapse = " "), paste0(data_dir,"House_2020.csv"))
             write_delim(xx, paste0(data_dir,"House_2020.csv"), append = TRUE, col_names = TRUE)
+        }
+        getvotes <- function(xx, i){
+            ggxx <<- xx
+            ggi <<- i
+            if (xx$fusion_ticket[i]){
+                if (substr(xx$party[i],1,8) == "DEMOCRAT" |
+                    substr(xx$party[i],1,10) == "REPUBLICAN"){
+                    votes <- sum(xx$candidatevotes[xx$year == xx$year[i] &
+                                                       xx$cd == xx$cd[i] &
+                                                       !is.na(xx$candidate) &
+                                                       xx$candidate == xx$candidate[i]])
+                    #cat(file=stderr(), paste0("+++ ",xx$year[i],"|",xx$cd[i],": FUSION_TICKET ",xx$candidate[i],", VOTES: ",xx$candidatevotes[i]," -> ",votes,"\n"))
+                    cat(file=stderr(), paste0("+++ ",xx$year[i],"|",xx$cd[i],": FUSION_TICKET ",xx$candidate[i],"|",xx$party[i],": ADD VOTES: ",votes-xx$candidatevotes[i],"\n"))
+                }
+                else{
+                    votes <- 0
+                    cat(file=stderr(), paste0("--- ",xx$year[i],"|",xx$cd[i],": FUSION_TICKET ",xx$candidate[i],"|",xx$party[i],": SUB VOTES: ",-xx$candidatevotes[i],"\n"))
+                }
+            }
+            else{
+                votes <- xx$candidatevotes[i]
+            }
+            return(votes)
+        }
+        createHouseNN <- function(year){
+            xx0 <- read_csv(paste0(input_dir,"1976-2018-house3.csv"))
+            xx1 <- xx0[xx0$year == year,] # no 2019 for runoff
+            xx1$district[xx1$district == 0] <- 1
+            xx1$cd <- paste0(xx1$state_po,"-",xx1$district)
+            xx <- data.frame(unique(xx1$cd), stringsAsFactors = FALSE)
+            names(xx) <- "AREA"
+            xx$DEM <- 0
+            xx$REP <- 0
+            xx$OTH <- 0
+            xx$OVERVOTES <- 0
+            xx$UNDERVOTES <- 0
+            xx$BLANKVOTES <- 0
+            xx$TOT <- 0
+            for (i in 1:NROW(xx1)){
+                gxx1 <<- xx1 #DEBUG-RM
+                gxx <<- xx #DEBUG-RM
+                ii <<- i #DEBUG-RM
+                #if (is.na(xx1$party[i]) & xx1$writein[i]){
+                if (is.na(xx1$party[i])){
+                    if (!is.na(xx1$writein[i]) & xx1$writein[i]){
+                        xx$OTH[xx$AREA == xx1$cd[i]] <- xx$OTH[xx$AREA == xx1$cd[i]] + xx1$candidatevotes[i]
+                    }
+                    #check?
+                }
+                else if (xx1$party[i] == "DEMOCRAT"){
+                    votes <- getvotes(xx1, i)
+                    xx$DEM[xx$AREA == xx1$cd[i]] <- max(
+                        xx$DEM[xx$AREA == xx1$cd[i]],votes)
+                }
+                else if (substr(xx1$party[i],1,8) == "DEMOCRAT"){
+                    cat(file=stderr(), paste0("=== ",xx1$year[i],"|",xx1$cd[i],": READ ",xx1$party[i]," as DEMOCRAT\n"))
+                    votes <- getvotes(xx1, i)
+                    xx$DEM[xx$AREA == xx1$cd[i]] <- max(
+                        xx$DEM[xx$AREA == xx1$cd[i]],votes)
+                }
+                else if (xx1$party[i] == "REPUBLICAN"){
+                    votes <- getvotes(xx1, i)
+                    xx$REP[xx$AREA == xx1$cd[i]] <- max(
+                        xx$REP[xx$AREA == xx1$cd[i]],votes)
+                }
+                else if (substr(xx1$party[i],1,10) == "REPUBLICAN"){
+                    cat(file=stderr(), paste0("=== ",xx1$year[i],"|",xx1$cd[i],": READ ",xx1$party[i]," as REPUBLICAN\n"))
+                    votes <- getvotes(xx1, i)
+                    xx$REP[xx$AREA == xx1$cd[i]] <- max(
+                        xx$REP[xx$AREA == xx1$cd[i]],votes)
+                }
+                else if (is.na(xx1$candidate[i]) & (is.na(xx1$writein[i]) | xx1$writein[i])){ #check NA for line 274 (4015)
+                    votes <- getvotes(xx1, i)
+                    xx$OTH[xx$AREA == xx1$cd[i]] <- xx$OTH[xx$AREA == xx1$cd[i]] + votes
+                }
+                else if (xx1$candidate[i] == "OVER VOTE" | xx1$candidate[i] == "OVER VOTES"){
+                    xx$OVERVOTES[xx$AREA == xx1$cd[i]] <- xx1$candidatevotes[i]
+                }
+                else if (xx1$candidate[i] == "UNDER VOTE" | xx1$candidate[i] == "UNDER VOTES"){
+                    xx$UNDERVOTES[xx$AREA == xx1$cd[i]] <- xx1$candidatevotes[i]
+                }
+                else if (xx1$candidate[i] == "BLANK VOTE" | xx1$candidate[i] == "BLANK VOTE/SCATTERING"){
+                    xx$BLANKVOTES[xx$AREA == xx1$cd[i]] <- xx1$candidatevotes[i]
+                }
+                else{
+                    votes <- getvotes(xx1, i)
+                    xx$OTH[xx$AREA == xx1$cd[i]] <- xx$OTH[xx$AREA == xx1$cd[i]] + votes
+                }
+            }
+            for (i in 1:NROW(xx)){
+                if (is.na(xx$DEM[i])){
+                    cat(file=stderr(), paste0("... ",year,"|",xx$AREA[i],": NO DEMOCRAT (NA)\n"))
+                }
+                else if (xx$DEM[i] == 0){
+                    cat(file=stderr(), paste0("... ",year,"|",xx$AREA[i],": NO DEMOCRAT\n"))
+                }
+                if (is.na(xx$REP[i])){
+                    cat(file=stderr(), paste0("... ",year,"|",xx$AREA[i],": NO REPUBLICAN (NA)\n"))
+                }
+                else if (xx$REP[i] == 0){
+                    cat(file=stderr(), paste0("... ",year,"|",xx$AREA[i],": NO REPUBLICAN\n"))
+                }
+            } 
+            xx$DEM[xx$DEM == 0]<- NA
+            xx$REP[xx$REP == 0]<- NA
+            namesxx <- names(xx)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_",year,".csv"))
+            write_delim(xx, paste0(data_dir,"House_",year,".csv"), append = TRUE, col_names = TRUE)
         }
         getlabels <- function(type){
             if (input$measure == "Percent change"){
@@ -335,7 +466,12 @@ shinyServer(
                 title <- paste(tshift, input$party, tunits, "from",
                                racex, "to", racey,
                                "Race in", tstate2, tnote)
-                ylabel <- paste(tshift, input$party, tunits, "for", racey)
+                if (input$flipy){
+                    ylabel <- paste(tshift, input$party, tunits, "from", racey)
+                }
+                else{
+                    ylabel <- paste(tshift, input$party, tunits, "for", racey)
+                }
             }
             xlabel <- paste0(input$party," ",tunits," for ", racex,
                              "\nSources: see http://econdataus.com/voting_538.htm")
@@ -380,6 +516,7 @@ shinyServer(
             party_sh <- paste0(preparty,"_SH")
             party1n <- "TOT1_N"
             xx$Party <- ""
+            gxx <<- xx #DEBUG-RM
             if (input$xlimit != ""){
                 vlimit <- as.numeric(unlist(strsplit(input$xlimit, ",")))
                 vparty <- unlist(strsplit(input$xparty, ","))
@@ -410,7 +547,12 @@ shinyServer(
             gg <- gg + geom_point(data=xx, size=3, alpha=0.7,
                                   aes_string(color="Party",shape="Votes"))
             if (input$party == "Margin"){
-                gg <- gg + geom_abline(intercept=0, slope=-1, color="gray", linetype="dashed")
+                if (input$flipy){
+                    gg <- gg + geom_abline(intercept=0, slope=1, color="gray", linetype="dashed")
+                }
+                else{
+                    gg <- gg + geom_abline(intercept=0, slope=-1, color="gray", linetype="dashed")
+                }
             }
             if (input$party == "Margin" | input$units == "Count"){
                 gg <- gg + geom_vline(xintercept=0, color="gray")
@@ -517,6 +659,27 @@ shinyServer(
             }
             return(gg)
         }, height = 600, width = 1000)
+        output$myPlot2 <- renderPlot({
+            xx <- read_csv(paste0(input_dir,"1976-2018-house3.csv"))
+            gxx2 <<- xx #DEBUG-RM
+            minyear <- input$minyear
+            maxyear <- input$maxyear
+            cd <- "IA-1" #"FL-27"
+            state2 <- input$state2_2
+            dist <- as.numeric(input$district2)
+            dvotes <- xx[xx$year >= minyear & xx$year <= maxyear & xx$party == "DEMOCRAT" &
+                         xx$state_po == state2 & xx$district == dist,
+                         c("year","candidatevotes","totalvotes")]
+            names(dvotes) <- c("YEAR","DEM","DEMTOT")
+            rvotes <- xx[xx$year >= minyear & xx$year <= maxyear & xx$party == "REPUBLICAN" &
+                         xx$state_po == state2 & xx$district == dist,
+                         c("year","candidatevotes","totalvotes")]
+            names(rvotes) <- c("YEAR","REP","REPTOT")
+            yy <- merge(dvotes,rvotes)
+            yy$margin <- 100 * (yy$DEM/yy$DEMTOT - yy$REP/yy$REPTOT)
+            gyy2 <<- yy #DEBUG-RM
+            plot(yy$YEAR,yy$margin)
+        })
         output$myText <- renderPrint({
             dd <- getdata()
             if (!grepl("^House",input$racex) | !grepl("^House",input$racey)){
@@ -788,11 +951,44 @@ shinyServer(
         getdata <- reactive({
             if (input$createfiles){
                 create538_20()
+                createHouse538_18("deluxe")
+                createHouse538_18("classic")
+                createHouse538_18("lite")
                 createPresident20()
                 createPresident16()
                 createPresident12()
                 createSenate20()
                 createHouse20()
+                createHouseNN(2018)
+                createHouseNN(2016)
+                createHouseNN(2014)
+                createHouseNN(2012)
+                createHouseNN(2010)
+                createHouseNN(2008)
+                createHouseNN(2006)
+                createHouseNN(2004)
+                createHouseNN(2002)
+                createHouseNN(2000)
+                createHouseNN(1998)
+                createHouseNN(1996)
+                createHouseNN(1994)
+                createHouseNN(1992)
+                createHouseNN(1990)
+                createHouseNN(1988)
+                createHouseNN(1986)
+                createHouseNN(1984)
+                createHouseNN(1982)
+                createHouseNN(1980)
+                createHouseNN(1978)
+                createHouseNN(1976)
+            }
+            if (input$flipy){
+                msh1 <- -1
+                msh100 <- -100
+            }
+            else{
+                msh1 <- 1
+                msh100 <- 100
             }
             model <- input$model
             if (grepl("House_538$", input$racex) | grepl("Senate_538$", input$racex)){
@@ -843,43 +1039,80 @@ shinyServer(
             names(yy)[2] <- paste0(names(yy[2]),"2")
             names(yy)[3] <- paste0(names(yy[3]),"2")
             
-            dd <- as.data.frame(merge(xx, yy, by = "AREA"))
+            if (input$showall){
+                # xx$DEM1[is.na(xx$DEM1)] <- 1
+                # xx$REP1[is.na(xx$REP1)] <- 1
+                # yy$DEM2[is.na(yy$DEM2)] <- 1
+                # yy$REP2[is.na(yy$REP2)] <- 1
+                dd <- as.data.frame(merge(xx, yy, by = "AREA", all = TRUE))
+                dd$na1 <- is.na(dd$DEM1) & is.na(dd$REP1) & is.na(dd$MARGIN1) & is.na(dd$TOTAL1)
+                dd$na2 <- is.na(dd$DEM2) & is.na(dd$REP2) & is.na(dd$MARGIN2) & is.na(dd$TOTAL2)
+                dd$DEM1[dd$na1] <- dd$TOTAL2[dd$na1] / 2
+                dd$REP1[dd$na1] <- dd$TOTAL2[dd$na1] / 2
+                dd$MARGIN1[dd$na1] <- 0
+                dd$TOTAL1[dd$na1] <- dd$TOTAL2[dd$na1]
+                dd$DEM2[dd$na2] <- dd$TOTAL1[dd$na2] / 2
+                dd$REP2[dd$na2] <- dd$TOTAL1[dd$na2] / 2
+                dd$MARGIN2[dd$na2] <- 0
+                dd$TOTAL2[dd$na2] <- dd$TOTAL1[dd$na2]
+                dd$DEM1[is.na(dd$DEM1)] <- 1
+                dd$REP1[is.na(dd$REP1)] <- 1
+                dd$DEM2[is.na(dd$DEM2)] <- 1
+                dd$REP2[is.na(dd$REP2)] <- 1
+                dd <- dd[,1:9]
+                dd2 <<- dd
+            }
+            else{
+                dd <- as.data.frame(merge(xx, yy, by = "AREA"))
+            }
             ddnames <- names(dd)
             names(dd) <- c("AREA","DEM1","REP1","MARGIN1","TOTAL1","DEM2","REP2","MARGIN2","TOTAL2")
+            dd3 <<- dd
             ddtot <- data.frame("TOTAL",sum(dd$DEM1,na.rm=TRUE),sum(dd$REP1,na.rm=TRUE),
                                 sum(dd$MARGIN1,na.rm=TRUE),sum(dd$TOTAL1,na.rm=TRUE),
                                 sum(dd$DEM2,na.rm=TRUE),sum(dd$REP2,na.rm=TRUE),
                                 sum(dd$MARGIN2,na.rm=TRUE),sum(dd$TOTAL2,na.rm=TRUE))
             names(ddtot) <- names(dd)
             dd <- rbind(dd, ddtot)
+            dd4 <<- dd
             DEM1_N <- dd$DEM1
             REP1_N <- dd$REP1
             MAR1_N <- dd$MARGIN1
-            TOT1_N <- dd$TOTAL1
+            if (input$vuse2){
+                TOT1_N <- dd$TOTAL2
+            }
+            else{
+                TOT1_N <- dd$TOTAL1
+            }
             dd$MARGIN1 <- dd$DEM1 - dd$REP1
             dd$MARGIN2 <- dd$DEM2 - dd$REP2
             if (input$dronly){
                 dd$TOTAL1 <- dd$DEM1 + dd$REP1
                 dd$TOTAL2 <- dd$DEM2 + dd$REP2
+                if (input$showall){
+                    dd$TOTAL1[dd$TOTAL1 == 0] <- 1
+                    dd$TOTAL2[dd$TOTAL2 == 0] <- 1
+                }
             }
+            dd5 <<- dd
             if (input$racey == "Registered"){
                 if (input$measure == "Percent change"){
-                    dd$DEM_SH <- 100 * (dd$DEM2 - dd$DEM1) / dd$DEM1
-                    dd$REP_SH <- 100 * (dd$REP2 - dd$REP1) / dd$REP1
-                    dd$MAR_SH <- 100 * (dd$MARGIN2 - dd$MARGIN1) / dd$MARGIN1
-                    dd$TOT_SH <- 100 * (dd$TOTAL2 - dd$TOTAL1) / dd$TOTAL1
+                    dd$DEM_SH <- msh100 * (dd$DEM2 - dd$DEM1) / dd$DEM1
+                    dd$REP_SH <- msh100 * (dd$REP2 - dd$REP1) / dd$REP1
+                    dd$MAR_SH <- msh100 * (dd$MARGIN2 - dd$MARGIN1) / dd$MARGIN1
+                    dd$TOT_SH <- msh100 * (dd$TOTAL2 - dd$TOTAL1) / dd$TOTAL1
                 }
                 else if (input$measure == "Percent ratio"){
-                    dd$DEM_SH <- 100 * dd$DEM1 / dd$DEM2
-                    dd$REP_SH <- 100 * dd$REP1 / dd$REP2
-                    dd$MAR_SH <- 100 * dd$MARGIN1 / dd$MARGIN2
-                    dd$TOT_SH <- 100 * dd$TOTAL1 / dd$TOTAL2
+                    dd$DEM_SH <- msh100 * dd$DEM1 / dd$DEM2
+                    dd$REP_SH <- msh100 * dd$REP1 / dd$REP2
+                    dd$MAR_SH <- msh100 * dd$MARGIN1 / dd$MARGIN2
+                    dd$TOT_SH <- msh100 * dd$TOTAL1 / dd$TOTAL2
                 }
-                else{
-                    dd$DEM_SH <- dd$DEM2 - dd$DEM1
-                    dd$REP_SH <- dd$REP2 - dd$REP1
-                    dd$MAR_SH <- dd$MARGIN2 - dd$MARGIN1
-                    dd$TOT_SH <- dd$TOTAL2 - dd$TOTAL1
+                else{	
+                    dd$DEM_SH <- msh1 * (dd$DEM2 - dd$DEM1)
+                    dd$REP_SH <- msh1 * (dd$REP2 - dd$REP1)
+                    dd$MAR_SH <- msh1 * (dd$MARGIN2 - dd$MARGIN1)
+                    dd$TOT_SH <- msh1 * (dd$TOTAL2 - dd$TOTAL1)
                 }
             }
             if (input$units == "Percent"){
@@ -892,26 +1125,28 @@ shinyServer(
                 dd$TOTAL1 <- dd$DEM1 + dd$REP1
                 dd$TOTAL2 <- dd$DEM2 + dd$REP2
             }
+            dd6 <<- dd
             if (input$racey != "Registered"){
                 if (input$measure == "Percent change"){
-                    dd$DEM_SH <- 100 * (dd$DEM2 - dd$DEM1) / dd$DEM1
-                    dd$REP_SH <- 100 * (dd$REP2 - dd$REP1) / dd$REP1
-                    dd$MAR_SH <- 100 * (dd$MARGIN2 - dd$MARGIN1) / dd$MARGIN1
-                    dd$TOT_SH <- 100 * (dd$TOTAL2 - dd$TOTAL1) / dd$TOTAL1
+                    dd$DEM_SH <- msh100 * (dd$DEM2 - dd$DEM1) / dd$DEM1
+                    dd$REP_SH <- msh100 * (dd$REP2 - dd$REP1) / dd$REP1
+                    dd$MAR_SH <- msh100 * (dd$MARGIN2 - dd$MARGIN1) / dd$MARGIN1
+                    dd$TOT_SH <- msh100 * (dd$TOTAL2 - dd$TOTAL1) / dd$TOTAL1
                 }
                 else if (input$measure == "Percent ratio"){
-                    dd$DEM_SH <- 100 * dd$DEM1 / dd$DEM2
-                    dd$REP_SH <- 100 * dd$REP1 / dd$REP2
-                    dd$MAR_SH <- 100 * dd$MARGIN1 / dd$MARGIN2
-                    dd$TOT_SH <- 100 * dd$TOTAL1 / dd$TOTAL2
+                    dd$DEM_SH <- msh100 * dd$DEM1 / dd$DEM2
+                    dd$REP_SH <- msh100 * dd$REP1 / dd$REP2
+                    dd$MAR_SH <- msh100 * dd$MARGIN1 / dd$MARGIN2
+                    dd$TOT_SH <- msh100 * dd$TOTAL1 / dd$TOTAL2
                 }
                 else{
-                    dd$DEM_SH <- dd$DEM2 - dd$DEM1
-                    dd$REP_SH <- dd$REP2 - dd$REP1
-                    dd$MAR_SH <- dd$MARGIN2 - dd$MARGIN1
-                    dd$TOT_SH <- dd$TOTAL2 - dd$TOTAL1
+                    dd$DEM_SH <- msh1 * (dd$DEM2 - dd$DEM1)
+                    dd$REP_SH <- msh1 * (dd$REP2 - dd$REP1)
+                    dd$MAR_SH <- msh1 * (dd$MARGIN2 - dd$MARGIN1)
+                    dd$TOT_SH <- msh1 * (dd$TOTAL2 - dd$TOTAL1)
                 }
             }
+            dd7 <<- dd
             names(dd)[1:9] <- ddnames
             xclose <- unlist(strsplit(input$xclose, ","))
             if (length(xclose) == 1){
@@ -971,6 +1206,7 @@ shinyServer(
                     }
                 }
             }
+            gdd <<- dd #DEBUG-RM
             dd
         })
         observe({

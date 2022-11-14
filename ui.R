@@ -17,6 +17,7 @@ shinyUI(pageWithSidebar(
             checkboxInput("showflips","Show flips",value = TRUE),
             textInput("xclose", "Close %", value = "0")
         ),
+        checkboxInput("showall","Show all",value = FALSE),
         selectInput("measure", "Measure",
                     choices = c("Shift","Percent change","Percent ratio"),
                     selected = "Shift",
@@ -65,7 +66,10 @@ shinyUI(pageWithSidebar(
             tabPanel("Plot",
                 sidebarPanel(
                     width = 3,
-                    checkboxInput("showrow","Show row",value = FALSE),
+                    splitLayout(
+                      checkboxInput("showrow","Show row",value = FALSE),
+                      checkboxInput("flipy","Flip y",value = FALSE)
+                    ),
                     textInput("pos1", "Position above", value = ""),
                     textInput("pos3", "Position below", value = ""),
                     textInput("xscale", "X From,To,Step,Tick", value = ""),
@@ -80,6 +84,7 @@ shinyUI(pageWithSidebar(
                     textInput("vlimit","Vote Limit (1000s)",value = "1,10,100,1000"),
                     textInput("vshape","Vote Shape",value = "1,10,16,17,15"),
                     textInput("vdesc","Vote Desc",value = "< 1k,>=    1k,>=   10k,>=  100k,>= 1000k"),
+                    checkboxInput("vuse2","Use Race2 Votes",value = FALSE),
                     splitLayout(
                         numericInput("plotload", "Load", 1),
                         actionButton("plotsave", "Save")
@@ -89,6 +94,42 @@ shinyUI(pageWithSidebar(
                     width = 9,
                     plotOutput("myPlot")
                 )
+            ),
+            tabPanel("Plot2",
+                     sidebarPanel(
+                         width = 3,
+                         splitLayout(
+                             numericInput("minyear", "Min Year", 1976),
+                             numericInput("maxyear", "Max Year", 2020)
+                         ),
+                         selectInput("races", "Races",
+                                     choices = c("President","Senate","House","Governor"),
+                                     selected = "President",
+                                     multiple = TRUE),
+                         textInput("state2_2", "State abbr(s)", value = "IA"),
+                         textInput("district2", "District(s)", value = "1"),
+                         textInput("xscale", "X From,To,Step,Tick", value = ""),
+                         textInput("yscale", "Y From,To,Step,Tick", value = ""),
+                         textInput("xlimit","Limit",value = "-9,-3,3,9"),
+                         textInput("xcolor","Color",value = "red3,orange,green3,violet,blue3"),
+                         textInput("xparty","Party",value = "1_Solid R,2_Leans R,3_Toss-Up,4_Leans D,5_Solid D"),
+                         selectInput("noparty", "No-party",
+                                     choices = c("Count as Dem","Split 50/50","Split by Ratio","Count as Rep"),
+                                     selected = "Split by Ratio",
+                                     multiple = FALSE),
+                         textInput("vlimit","Vote Limit (1000s)",value = "1,10,100,1000"),
+                         textInput("vshape","Vote Shape",value = "1,10,16,17,15"),
+                         textInput("vdesc","Vote Desc",value = "< 1k,>=    1k,>=   10k,>=  100k,>= 1000k"),
+                         checkboxInput("vuse2","Use Race2 Votes",value = FALSE),
+                         splitLayout(
+                             numericInput("plotload", "Load", 1),
+                             actionButton("plotsave", "Save")
+                         )
+                     ),
+                     mainPanel(
+                         width = 9,
+                         plotOutput("myPlot2")
+                     )
             ),
             tabPanel(
                 "Map",
@@ -130,7 +171,7 @@ shinyUI(pageWithSidebar(
                         numericInput("year_first", "First Year", 2020),
                         numericInput("year_last", "Last Year", 2012)
                     ),
-                    numericInput("year_step", "Step Year", -4)
+                    numericInput("year_step", "Step Year", -2)
                 ),
                 mainPanel(
                     width = 9,
