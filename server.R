@@ -14,6 +14,66 @@ shinyServer(
         options(width = 240, readr.show_progress = FALSE)
         options(max.print=999999)
         
+        states <- c("Alabama","Alaska","Arizona","Arkansas","California",
+                    "Colorado","Connecticut","Delaware","DC","Florida",
+                    "Georgia","Hawaii","Idaho","Illinois","Indiana",
+                    "Iowa","Kansas","Kentucky","Louisiana","Maine",
+                    "Maryland","Massachusetts","Michigan","Minnesota","Mississippi",
+                    "Missouri","Montana","Nebraska","Nevada","New Hampshire",
+                    "New Jersey","New Mexico","New York","North Carolina","North Dakota",
+                    "Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
+                    "South Carolina","South Dakota","Tennessee","Texas","Utah",
+                    "Vermont","Virginia","Washington","West Virginia","Wisconsin",
+                    "Wyoming","D.C.","District of Columbia")
+        stabbr <- c("AL","AK","AZ","AR","CA",
+                    "CO","CT","DE","DC","FL",
+                    "GA","HI","ID","IL","IN",
+                    "IA","KS","KY","LA","ME",
+                    "MD","MA","MI","MN","MS",
+                    "MO","MT","NE","NV","NH",
+                    "NJ","NM","NY","NC","ND",
+                    "OH","OK","OR","PA","RI",
+                    "SC","SD","TN","TX","UT",
+                    "VT","VA","WA","WV","WI","WY","DC","DC")
+        zstates <- c("Alaska","Alabama","Arkansas","Arizona","California",
+                     "Colorado","Connecticut","DC","Delaware","Florida",
+                     "Georgia","Hawaii","Iowa","Idaho","Illinois",
+                     "Indiana","Kansas","Kentucky","Louisiana","Massachusetts",
+                     "Maryland","Maine","Michigan","Minnesota","Missouri",
+                     "Mississippi","Montana","North Carolina","North Dakota","Nebraska",
+                     "New Hampshire","New Jersey","New Mexico","Nevada","New York",
+                     "Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
+                     "South Carolina","South Dakota","Tennessee","Texas","Utah",
+                     "Virginia","Vermont","Washington","Wisconsin","West Virginia",
+                     "Wyoming","D.C.","District of Columbia")
+        zstabbr <- c("AK","AL","AR","AZ","CA",
+                     "CO","CT","DC","DE","FL",
+                     "GA","HI","IA","ID","IL",
+                     "IN","KS","KY","LA","MA",
+                     "MD","ME","MI","MN","MO",
+                     "MS","MT","NC","ND","NE",
+                     "NH","NJ","NM","NV","NY",
+                     "OH","OK","OR","PA","RI",
+                     "SC","SD","TN","TX","UT",
+                     "VA","VT","WA","WI","WV","WY","DC","DC")
+        stinfo <- data.frame(states,stabbr)
+        getStateAbbr <- function(str){
+            for (i in 1:length(states)){
+                pattern <- paste0("^",states[i])
+                if (any(grep(pattern, str))){
+                    str <- gsub(pattern, stabbr[i], str)
+                    break
+                }
+            }
+            return(str)
+        }
+        getState <- function(str){
+            state <- as.character(stinfo$states[stinfo$stabbr == str])
+            if (identical(state,character(0))){
+                return(str)                
+            }
+            return(state)
+        }
         get_congress_map <- function(cong=113) {
             tmp_file <- tempfile()
             tmp_dir  <- tempdir()
@@ -22,6 +82,97 @@ shinyServer(
             unzip(zipfile = tmp_file, exdir = tmp_dir)
             fpath <- paste(tmp_dir, sprintf("districtShapes/districts%03i.shp",cong), sep = "/")
             st_read(fpath)
+        }
+        create538_22 <- function(){
+            xx0 <- read_csv(paste0(input_dir,"house_district_toplines_2022.csv"))
+            xx1 <- xx0[str_detect(xx0$forecastdate, "11/8/22"),]
+            xx <- xx1[xx1$expression == "_deluxe",]
+            xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1",
+                      "voteshare_mean_O1","mean_predicted_turnout")]
+            names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
+            for (i in 2:4){
+            xx[,i] <- xx$TURNOUT * xx[,i] / 100
+            }
+            xx <- xx[,1:(NCOL(xx)-1)]
+            namesxx <- names(xx)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_538_deluxe_2022.csv"))
+            write_delim(xx, paste0(data_dir,"House_538_deluxe_2022.csv"), append = TRUE, col_names = TRUE)
+            
+            xx0 <- read_csv(paste0(input_dir,"senate_state_toplines_2022.csv"))
+            xx1 <- xx0[str_detect(xx0$forecastdate, "11/8/22"),]
+            xx <- xx1[xx1$expression == "_deluxe",]
+            xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1","voteshare_mean_O1","mean_predicted_turnout")]
+            names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
+            # xx$AREA[substr(xx$AREA,1,2) != "GA"] <- substr(xx$AREA[substr(xx$AREA,1,2) != "GA"],1,2)
+            xx$AREA <- substr(xx$AREA,1,2)
+            # xx$AREA[xx$AREA == "GA-S2"] <- "GA"
+            # xx$AREA[xx$AREA == "GA-S3"] <- "GA-2"
+            for (i in 2:4){
+            xx[,i] <- xx$TURNOUT * xx[,i] / 100
+            }
+            xx <- xx[,1:(NCOL(xx)-1)]
+            namesxx <- names(xx)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"Senate_538_deluxe_2022.csv"))
+            write_delim(xx, paste0(data_dir,"Senate_538_deluxe_2022.csv"), append = TRUE, col_names = TRUE)
+        }
+        createHouse22 <- function(){
+            filename <- paste0(input_dir,"House_US_221108.txt")
+            ww <- read.delim(filename, header = FALSE)
+            xx <- as.data.frame(ww)
+            xx <- xx[seq(1,NROW(xx),2),]
+            names(xx) <- c("DIST","WINNER","STATUS","DEM","REP","OTH","DEM%","REP%","OTH%","MARGIN22","MARGIN20","%OF20TO")
+            xx$DIST <- gsub("-AL","-1", xx$DIST)
+            xx$DIST <- gsub("-0", "-", xx$DIST)
+            zxx <<- xx #DEBUG-RM
+            xx <- xx[,c("DIST","DEM","REP","OTH")]
+            names(xx) <- c("AREA","DEM","REP","OTH")
+            write(paste(names(xx), collapse = " "), paste0(data_dir,"House_2022.csv"))
+            write_delim(xx, paste0(data_dir,"House_2022.csv"), append = TRUE, col_names = TRUE)
+        }
+        createSenate22 <- function(){
+            filename <- paste0(input_dir,"Senate_US_221108.txt")
+            ww <- read.delim(filename, header = FALSE)
+            xx <- as.data.frame(ww)
+            xx$V2 <- gsub(",","",xx$V2)
+            st2 <- NULL
+            dem <- NULL
+            rep <- NULL
+            oth <- NULL
+            for (i in 1:length(zstates)){
+                j <- which (xx$V1 == zstates[i])
+                j <- j+1
+                if (length(j) > 0){
+                    nr <- nd <- no <- 0
+                    #cat(paste0("***** ",zstates[i],"\n")) #DEBUG-RM
+                    if (!grepl("^ ", xx$V1[j])) j <- j+1
+                    for (k in j:(j+1)){
+                        if (grepl("(R)", xx$V1[k], fixed = TRUE)){
+                            nr <- nr + as.integer(xx$V2[k])
+                        }
+                        else if (grepl("(D)", xx$V1[k], fixed = TRUE)){
+                            nd <- nd + as.integer(xx$V2[k])
+                        }
+                        else{
+                            no <- no + as.integer(xx$V2[k])
+                        }
+                    }
+                    j <- j+2
+                    while (TRUE){
+                        if (!grepl("^ ", xx$V1[j])) break
+                        no <- no + as.integer(xx$V2[j])
+                        j <- j+1
+                    }
+                    st2 <- c(st2, zstabbr[i])
+                    dem <- c(dem, nd)
+                    rep <- c(rep, nr)
+                    oth <- c(oth, no)
+                }
+            }
+            zz <- data.frame(st2,dem,rep,oth)
+            zzz <<- zz #DEBUG-RM
+            names(zz) <- c("AREA","DEM","REP","OTH")
+            write(paste(names(zz), collapse = " "), paste0(data_dir,"Senate_2022.csv"))
+            write_delim(zz, paste0(data_dir,"Senate_2022.csv"), append = TRUE, col_names = TRUE)
         }
         create538_20 <- function(){
             xx0 <- read_csv(paste0(input_dir,"house_district_toplines_2020.csv"))
@@ -906,50 +1057,14 @@ shinyServer(
                     )
             }
         })
-        states <- c("Alabama","Alaska","Arizona","Arkansas","California",
-                    "Colorado","Connecticut","Delaware","DC","Florida",
-                    "Georgia","Hawaii","Idaho","Illinois","Indiana",
-                    "Iowa","Kansas","Kentucky","Louisiana","Maine",
-                    "Maryland","Massachusetts","Michigan","Minnesota","Mississippi",
-                    "Missouri","Montana","Nebraska","Nevada","New Hampshire",
-                    "New Jersey","New Mexico","New York","North Carolina","North Dakota",
-                    "Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
-                    "South Carolina","South Dakota","Tennessee","Texas","Utah",
-                    "Vermont","Virginia","Washington","West Virginia","Wisconsin",
-                    "Wyoming","D.C.","District of Columbia")
-        stabbr <- c("AL","AK","AZ","AR","CA",
-                    "CO","CT","DE","DC","FL",
-                    "GA","HI","ID","IL","IN",
-                    "IA","KS","KY","LA","ME",
-                    "MD","MA","MI","MN","MS",
-                    "MO","MT","NE","NV","NH",
-                    "NJ","NM","NY","NC","ND",
-                    "OH","OK","OR","PA","RI",
-                    "SC","SD","TN","TX","UT",
-                    "VT","VA","WA","WV","WI","WY","DC","DC")
-        stinfo <- data.frame(states,stabbr)
-        getStateAbbr <- function(str){
-            for (i in 1:length(states)){
-                pattern <- paste0("^",states[i])
-                if (any(grep(pattern, str))){
-                    str <- gsub(pattern, stabbr[i], str)
-                    break
-                }
-            }
-            return(str)
-        }
-        getState <- function(str){
-            state <- as.character(stinfo$states[stinfo$stabbr == str])
-            if (identical(state,character(0))){
-                return(str)                
-            }
-            return(state)
-        }
         #############################################################
         # getdata
         #############################################################
         getdata <- reactive({
             if (input$createfiles){
+                create538_22()
+                createHouse22()
+                createSenate22()
                 create538_20()
                 createHouse538_18("deluxe")
                 createHouse538_18("classic")
