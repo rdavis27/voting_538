@@ -83,10 +83,10 @@ shinyServer(
             fpath <- paste(tmp_dir, sprintf("districtShapes/districts%03i.shp",cong), sep = "/")
             st_read(fpath)
         }
-        create538_22 <- function(){
+        create538_22 <- function(model){
             xx0 <- read_csv(paste0(input_dir,"house_district_toplines_2022.csv"))
             xx1 <- xx0[str_detect(xx0$forecastdate, "11/8/22"),]
-            xx <- xx1[xx1$expression == "_deluxe",]
+            xx <- xx1[xx1$expression == model,]
             xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1",
                       "voteshare_mean_O1","mean_predicted_turnout")]
             names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
@@ -95,12 +95,12 @@ shinyServer(
             }
             xx <- xx[,1:(NCOL(xx)-1)]
             namesxx <- names(xx)
-            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_538_deluxe_2022.csv"))
-            write_delim(xx, paste0(data_dir,"House_538_deluxe_2022.csv"), append = TRUE, col_names = TRUE)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_538",model,"_2022.csv"))
+            write_delim(xx, paste0(data_dir,"House_538",model,"_2022.csv"), append = TRUE, col_names = TRUE)
             
             xx0 <- read_csv(paste0(input_dir,"senate_state_toplines_2022.csv"))
             xx1 <- xx0[str_detect(xx0$forecastdate, "11/8/22"),]
-            xx <- xx1[xx1$expression == "_deluxe",]
+            xx <- xx1[xx1$expression == model,]
             xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1","voteshare_mean_O1","mean_predicted_turnout")]
             names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
             # xx$AREA[substr(xx$AREA,1,2) != "GA"] <- substr(xx$AREA[substr(xx$AREA,1,2) != "GA"],1,2)
@@ -112,8 +112,8 @@ shinyServer(
             }
             xx <- xx[,1:(NCOL(xx)-1)]
             namesxx <- names(xx)
-            write(paste(namesxx, collapse = " "), paste0(data_dir,"Senate_538_deluxe_2022.csv"))
-            write_delim(xx, paste0(data_dir,"Senate_538_deluxe_2022.csv"), append = TRUE, col_names = TRUE)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"Senate_538",model,"_2022.csv"))
+            write_delim(xx, paste0(data_dir,"Senate_538",model,"_2022.csv"), append = TRUE, col_names = TRUE)
         }
         createHouse22 <- function(){
             filename <- paste0(input_dir,"House_US_221108.txt")
@@ -129,7 +129,7 @@ shinyServer(
             write(paste(names(xx), collapse = " "), paste0(data_dir,"House_2022.csv"))
             write_delim(xx, paste0(data_dir,"House_2022.csv"), append = TRUE, col_names = TRUE)
         }
-        createSenate22 <- function(){
+        createSenate22 <- function(model){
             filename <- paste0(input_dir,"Senate_US_221108.txt")
             ww <- read.delim(filename, header = FALSE)
             xx <- as.data.frame(ww)
@@ -174,10 +174,10 @@ shinyServer(
             write(paste(names(zz), collapse = " "), paste0(data_dir,"Senate_2022.csv"))
             write_delim(zz, paste0(data_dir,"Senate_2022.csv"), append = TRUE, col_names = TRUE)
         }
-        create538_20 <- function(){
+        create538_20 <- function(model){
             xx0 <- read_csv(paste0(input_dir,"house_district_toplines_2020.csv"))
             xx1 <- xx0[str_detect(xx0$forecastdate, "11/3/20"),]
-            xx <- xx1[xx1$expression == "_deluxe",]
+            xx <- xx1[xx1$expression == model,]
             xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1",
                         "voteshare_mean_O1","mean_predicted_turnout")]
             names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
@@ -186,12 +186,12 @@ shinyServer(
             }
             xx <- xx[,1:(NCOL(xx)-1)]
             namesxx <- names(xx)
-            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_538_deluxe_2020.csv"))
-            write_delim(xx, paste0(data_dir,"House_538_deluxe_2020.csv"), append = TRUE, col_names = TRUE)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"House_538",model,"_2020.csv"))
+            write_delim(xx, paste0(data_dir,"House_538",model,"_2020.csv"), append = TRUE, col_names = TRUE)
             
             xx0 <- read_csv(paste0(input_dir,"senate_state_toplines_2020.csv"))
             xx1 <- xx0[str_detect(xx0$forecastdate, "11/3/20"),]
-            xx <- xx1[xx1$expression == "_deluxe",]
+            xx <- xx1[xx1$expression == model,]
             xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1","voteshare_mean_O1","mean_predicted_turnout")]
             names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
             xx$AREA[substr(xx$AREA,1,2) != "GA"] <- substr(xx$AREA[substr(xx$AREA,1,2) != "GA"],1,2)
@@ -202,8 +202,8 @@ shinyServer(
             }
             xx <- xx[,1:(NCOL(xx)-1)]
             namesxx <- names(xx)
-            write(paste(namesxx, collapse = " "), paste0(data_dir,"Senate_538_deluxe_2020.csv"))
-            write_delim(xx, paste0(data_dir,"Senate_538_deluxe_2020.csv"), append = TRUE, col_names = TRUE)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"Senate_538",model,"_2020.csv"))
+            write_delim(xx, paste0(data_dir,"Senate_538",model,"_2020.csv"), append = TRUE, col_names = TRUE)
             
             xx0 <- read_csv(paste0(input_dir,"presidential_state_toplines_2020.csv"))
             xx1 <- xx0[str_detect(xx0$modeldate, "11/3/2020"),]
@@ -586,10 +586,20 @@ shinyServer(
                 tunits <- "Votes"
             }
             if (type != "plot"){
-                tnote <- paste0("(",input$units,")")
+                if (input$tnote == ""){
+                    tnote <- paste0("(",input$units,")")
+                }
+                else{
+                    tnote <- input$tnote
+                }
             }
             else if (input$party == "Margin"){
-                tnote <- "(positive direction is more Democratic)"
+                if (input$tnote == ""){
+                    tnote <- "(positive direction is more Democratic)"
+                }
+                else{
+                    tnote <- input$tnote
+                }
             }
             else{
                 tnote <- ""
@@ -1062,10 +1072,14 @@ shinyServer(
         #############################################################
         getdata <- reactive({
             if (input$createfiles){
-                create538_22()
+                create538_22("_deluxe")
+                create538_22("_classic")
+                create538_22("_lite")
                 createHouse22()
                 createSenate22()
-                create538_20()
+                create538_20("_deluxe")
+                create538_20("_classic")
+                create538_20("_lite")
                 createHouse538_18("deluxe")
                 createHouse538_18("classic")
                 createHouse538_18("lite")
