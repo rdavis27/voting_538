@@ -31,11 +31,11 @@ shinyUI(pageWithSidebar(
                     selected = "Percent",
                     multiple = FALSE),
         selectInput("racex", "Races, x & y axes",
-                    choices = c("President_538","Senate_538","House_538","President","Senate","House","Governor","Registered"),
+                    choices = c("President_538","Senate_538","House_538","Governor_538","President","Senate","House","Governor","Registered"),
                     selected = "House_538",
                     multiple = FALSE),
         selectInput("racey", NULL,
-                    choices = c("President_538","Senate_538","House_538","President","Senate","House","Governor","Registered"),
+                    choices = c("President_538","Senate_538","House_538","Governor_538","President","Senate","House","Governor","Registered"),
                     selected = "House",
                     multiple = FALSE),
         selectInput("model", "538 Model",
@@ -54,7 +54,8 @@ shinyUI(pageWithSidebar(
         textInput("fpop", "Min pop(k)", value = "0"),
         checkboxInput("fullstate","Show full state",value = FALSE),
         checkboxInput("dronly","Dem+Rep Only",value = FALSE),
-        checkboxInput("createfiles","Create Data Files",value = FALSE)
+        checkboxInput("createfiles","Create Data Files",value = FALSE),
+        checkboxInput("writeoutput","Write Output",value = FALSE)
     ),
     mainPanel(
         tabsetPanel(id = "tabs",

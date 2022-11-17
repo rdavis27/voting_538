@@ -5,9 +5,11 @@ library(reshape2)
 library(tigris)
 library(leaflet)
 library(htmltools)
+library(xlsx)
 
 input_dir <- "input/"
 data_dir  <- "data/"
+out_dir   <- "out/"
 
 shinyServer(
     function(session,input, output) {
@@ -114,6 +116,20 @@ shinyServer(
             namesxx <- names(xx)
             write(paste(namesxx, collapse = " "), paste0(data_dir,"Senate_538",model,"_2022.csv"))
             write_delim(xx, paste0(data_dir,"Senate_538",model,"_2022.csv"), append = TRUE, col_names = TRUE)
+            
+            xx0 <- read_csv(paste0(input_dir,"governor_state_toplines_2022.csv"))
+            xx1 <- xx0[str_detect(xx0$forecastdate, "11/8/22"),]
+            xx <- xx1[xx1$expression == model,]
+            xx <- xx[,c("district","voteshare_mean_D1","voteshare_mean_R1","voteshare_mean_O1","mean_predicted_turnout")]
+            names(xx) <- c("AREA","DEM","REP","OTH","TURNOUT")
+            xx$AREA <- substr(xx$AREA,1,2)
+            for (i in 2:4){
+                xx[,i] <- xx$TURNOUT * xx[,i] / 100
+            }
+            xx <- xx[,1:(NCOL(xx)-1)]
+            namesxx <- names(xx)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"Governor_538",model,"_2022.csv"))
+            write_delim(xx, paste0(data_dir,"Governor_538",model,"_2022.csv"), append = TRUE, col_names = TRUE)
         }
         createHouse22 <- function(){
             filename <- paste0(input_dir,"House_US_221108.txt")
@@ -129,7 +145,7 @@ shinyServer(
             write(paste(names(xx), collapse = " "), paste0(data_dir,"House_2022.csv"))
             write_delim(xx, paste0(data_dir,"House_2022.csv"), append = TRUE, col_names = TRUE)
         }
-        createSenate22 <- function(model){
+        createSenate22 <- function(){
             filename <- paste0(input_dir,"Senate_US_221108.txt")
             ww <- read.delim(filename, header = FALSE)
             xx <- as.data.frame(ww)
@@ -173,6 +189,51 @@ shinyServer(
             names(zz) <- c("AREA","DEM","REP","OTH")
             write(paste(names(zz), collapse = " "), paste0(data_dir,"Senate_2022.csv"))
             write_delim(zz, paste0(data_dir,"Senate_2022.csv"), append = TRUE, col_names = TRUE)
+        }
+        createGovernor22 <- function(){
+            filename <- paste0(input_dir,"Governor_US_221108.txt")
+            ww <- read.delim(filename, header = FALSE)
+            xx <- as.data.frame(ww)
+            xx$V2 <- gsub(",","",xx$V2)
+            st2 <- NULL
+            dem <- NULL
+            rep <- NULL
+            oth <- NULL
+            for (i in 1:length(zstates)){
+                j <- which (xx$V1 == zstates[i])
+                j <- j+1
+                if (length(j) > 0){
+                    nr <- nd <- no <- 0
+                    #cat(paste0("***** ",zstates[i],"\n")) #DEBUG-RM
+                    if (!grepl("^ ", xx$V1[j])) j <- j+1
+                    for (k in j:(j+1)){
+                        if (grepl("(R)", xx$V1[k], fixed = TRUE)){
+                            nr <- nr + as.integer(xx$V2[k])
+                        }
+                        else if (grepl("(D)", xx$V1[k], fixed = TRUE)){
+                            nd <- nd + as.integer(xx$V2[k])
+                        }
+                        else{
+                            no <- no + as.integer(xx$V2[k])
+                        }
+                    }
+                    j <- j+2
+                    while (TRUE){
+                        if (!grepl("^ ", xx$V1[j])) break
+                        no <- no + as.integer(xx$V2[j])
+                        j <- j+1
+                    }
+                    st2 <- c(st2, zstabbr[i])
+                    dem <- c(dem, nd)
+                    rep <- c(rep, nr)
+                    oth <- c(oth, no)
+                }
+            }
+            zz <- data.frame(st2,dem,rep,oth)
+            zzz <<- zz #DEBUG-RM
+            names(zz) <- c("AREA","DEM","REP","OTH")
+            write(paste(names(zz), collapse = " "), paste0(data_dir,"Governor_2022.csv"))
+            write_delim(zz, paste0(data_dir,"Governor_2022.csv"), append = TRUE, col_names = TRUE)
         }
         create538_20 <- function(model){
             xx0 <- read_csv(paste0(input_dir,"house_district_toplines_2020.csv"))
@@ -856,6 +917,12 @@ shinyServer(
             for (i in 2:NCOL(dd)){
                 dd[,i] <- format(round(dd[,i], dp), big.mark=",", scientific=FALSE)
             }
+            if (input$writeoutput){
+                fileout <- paste0(input$measure,"_",input$yearx,"_",input$racex,"_",
+                                  input$model,  "_",input$yeary,"_",input$racey,".xlsx")
+                sheet <- paste0(input$units)
+                write.xlsx(dd, paste0(out_dir,fileout), sheetName = sheet, append = TRUE)
+            }
             labels <- getlabels("text")
             cat(paste0(labels[1],"\n\n"))
             print(dd)
@@ -1072,44 +1139,49 @@ shinyServer(
         #############################################################
         getdata <- reactive({
             if (input$createfiles){
-                create538_22("_deluxe")
-                create538_22("_classic")
-                create538_22("_lite")
-                createHouse22()
-                createSenate22()
-                create538_20("_deluxe")
-                create538_20("_classic")
-                create538_20("_lite")
-                createHouse538_18("deluxe")
-                createHouse538_18("classic")
-                createHouse538_18("lite")
-                createPresident20()
-                createPresident16()
-                createPresident12()
-                createSenate20()
-                createHouse20()
-                createHouseNN(2018)
-                createHouseNN(2016)
-                createHouseNN(2014)
-                createHouseNN(2012)
-                createHouseNN(2010)
-                createHouseNN(2008)
-                createHouseNN(2006)
-                createHouseNN(2004)
-                createHouseNN(2002)
-                createHouseNN(2000)
-                createHouseNN(1998)
-                createHouseNN(1996)
-                createHouseNN(1994)
-                createHouseNN(1992)
-                createHouseNN(1990)
-                createHouseNN(1988)
-                createHouseNN(1986)
-                createHouseNN(1984)
-                createHouseNN(1982)
-                createHouseNN(1980)
-                createHouseNN(1978)
-                createHouseNN(1976)
+                ayears <- seq(1976,2010,2)
+                cyears <- input$yearx
+                if (input$yearx != input$yeary){
+                    cyears <- c(cyears, input$yeary)
+                }
+                for (year in cyears){
+                    if (year == 2022){
+                        create538_22("_deluxe")
+                        create538_22("_classic")
+                        create538_22("_lite")
+                        createHouse22()
+                        createSenate22()
+                        createGovernor22()
+                    }
+                    else if (year == 2020){
+                        create538_20("_deluxe")
+                        create538_20("_classic")
+                        create538_20("_lite")
+                        createPresident20()
+                        createSenate20()
+                        createHouse20()
+                    }
+                    else if (year == 2018){
+                        createHouse538_18("deluxe")
+                        createHouse538_18("classic")
+                        createHouse538_18("lite")
+                        createHouseNN(year)
+                    }
+                    else if (year == 2016){
+                        createPresident16()
+                        createHouseNN(year)
+                    }
+                    else if (year == 2014){
+                        createHouseNN(year)
+                    }
+                    else if (year == 2012){
+                        createPresident12()
+                        createHouseNN(year)
+                    }
+                    else if (year %in% ayear){
+                        createHouseNN(year)
+                    }
+                }
             }
             if (input$flipy){
                 msh1 <- -1
@@ -1120,13 +1192,15 @@ shinyServer(
                 msh100 <- 100
             }
             model <- input$model
-            if (grepl("House_538$", input$racex) | grepl("Senate_538$", input$racex)){
+            if (grepl("House_538$", input$racex) | grepl("Senate_538$", input$racex) |
+                grepl("President_538$", input$racex) | grepl("Governor_538$", input$racex)){
                 filenamex <- paste0(data_dir,input$racex,model,"_",input$yearx,".csv")
             }
             else{
                 filenamex <- paste0(data_dir,input$racex,"_",input$yearx,".csv")
             }
-            if (grepl("House_538$", input$racey) | grepl("Senate_538$", input$racey)){
+            if (grepl("House_538$", input$racey) | grepl("Senate_538$", input$racey) |
+                grepl("President_538$", input$racey) | grepl("Governor_538$", input$racey)){
                 filenamey <- paste0(data_dir,input$racey,model,"_",input$yeary,".csv")
             }
             else{
