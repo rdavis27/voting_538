@@ -902,6 +902,28 @@ shinyServer(
             gyy2 <<- yy #DEBUG-RM
             plot(yy$YEAR,yy$margin)
         })
+        write_excel <- function(){
+            races  <- c("House","Senate","Governor")
+            models <- c("_deluxe","_classic","_lite")
+            zraces  <- c("Hous","Sen","Gov")
+            zmodels <- c("_dlux","_clas","_lite")
+            if (input$tnote == ""){
+                fileout <- paste0(input$measure,"_",input$yearx,"_",input$units,".xlsx")
+            }
+            else{
+                fileout <- paste0(input$measure,"_",input$yearx,"_",input$units,"_",input$tnote,".xlsx")
+            }
+            append <- FALSE
+            for (i in 1:3){
+                for (j in 1:3){
+                    dd <- getdatav(paste0(races[i],"_538"),races[i],models[j],input$units)
+                    sheet <- paste0(zraces[i],zmodels[j])
+                    write.xlsx(dd, paste0(out_dir,fileout), sheetName = sheet, append = append)
+                    append <- TRUE
+                }
+            }
+            
+        }
         output$myText <- renderPrint({
             dd <- getdata()
             if (!grepl("^House",input$racex) | !grepl("^House",input$racey)){
@@ -918,10 +940,11 @@ shinyServer(
                 dd[,i] <- format(round(dd[,i], dp), big.mark=",", scientific=FALSE)
             }
             if (input$writeoutput){
-                fileout <- paste0(input$measure,"_",input$yearx,"_",input$racex,"_",
-                                  input$model,  "_",input$yeary,"_",input$racey,".xlsx")
-                sheet <- paste0(input$units)
-                write.xlsx(dd, paste0(out_dir,fileout), sheetName = sheet, append = TRUE)
+                # fileout <- paste0(input$measure,"_",input$yearx,"_",input$racex,"_",
+                #                   input$model,  "_",input$yeary,"_",input$racey,".xlsx")
+                # sheet <- paste0(input$units)
+                # write.xlsx(dd, paste0(out_dir,fileout), sheetName = sheet, append = TRUE)
+                write_excel()
             }
             labels <- getlabels("text")
             cat(paste0(labels[1],"\n\n"))
@@ -1183,6 +1206,10 @@ shinyServer(
                     }
                 }
             }
+            dd <- getdatav(input$racex,input$racey,input$model,input$units)
+            return(dd)
+        })
+        getdatav <- function(racex,racey,model,units){
             if (input$flipy){
                 msh1 <- -1
                 msh100 <- -100
@@ -1191,36 +1218,35 @@ shinyServer(
                 msh1 <- 1
                 msh100 <- 100
             }
-            model <- input$model
-            if (grepl("House_538$", input$racex) | grepl("Senate_538$", input$racex) |
-                grepl("President_538$", input$racex) | grepl("Governor_538$", input$racex)){
-                filenamex <- paste0(data_dir,input$racex,model,"_",input$yearx,".csv")
+            if (grepl("House_538$", racex) | grepl("Senate_538$", racex) |
+                grepl("President_538$", racex) | grepl("Governor_538$", racex)){
+                filenamex <- paste0(data_dir,racex,model,"_",input$yearx,".csv")
             }
             else{
-                filenamex <- paste0(data_dir,input$racex,"_",input$yearx,".csv")
+                filenamex <- paste0(data_dir,racex,"_",input$yearx,".csv")
             }
-            if (grepl("House_538$", input$racey) | grepl("Senate_538$", input$racey) |
-                grepl("President_538$", input$racey) | grepl("Governor_538$", input$racey)){
-                filenamey <- paste0(data_dir,input$racey,model,"_",input$yeary,".csv")
+            if (grepl("House_538$", racey) | grepl("Senate_538$", racey) |
+                grepl("President_538$", racey) | grepl("Governor_538$", racey)){
+                filenamey <- paste0(data_dir,racey,model,"_",input$yeary,".csv")
             }
             else{
-                filenamey <- paste0(data_dir,input$racey,"_",input$yeary,".csv")
+                filenamey <- paste0(data_dir,racey,"_",input$yeary,".csv")
             }
             xxparty <- read_delim(filenamex, ' ', col_names = FALSE, n_max = 1)
             yyparty <- read_delim(filenamey, ' ', col_names = FALSE, n_max = 1)
-
+            
             xx0 <- read_delim(filenamex, ' ', skip = 1)
             # Remove columns where __party starts with X_, rows where AREA starts with X_
             xx0 <- xx0[,!grepl("^X_",xxparty)]
             xxparty <- xxparty[,!grepl("^X_",xxparty)]
             xx0 <- xx0[ !grepl("^X_",xx0$AREA),]
-
+            
             yy0 <- read_delim(filenamey, ' ', skip = 1)
             # Remove columns where __party starts with X_, rows where AREA starts with X_
             yy0 <- yy0[,!grepl("^X_",yyparty)]
             yyparty <- yyparty[,!grepl("^X_",yyparty)]
             yy0 <- yy0[ !grepl("^X_",yy0$AREA),]
-
+            
             xx0$MARGIN1 <- 0
             xx0$TOTAL1 <- rowSums(xx0[,2:(NCOL(xx0)-1)], na.rm = TRUE) # excludes MARGIN1
             idem <- which(xxparty == "DEM")
@@ -1298,7 +1324,7 @@ shinyServer(
                 }
             }
             dd5 <<- dd
-            if (input$racey == "Registered"){
+            if (racey == "Registered"){
                 if (input$measure == "Percent change"){
                     dd$DEM_SH <- msh100 * (dd$DEM2 - dd$DEM1) / dd$DEM1
                     dd$REP_SH <- msh100 * (dd$REP2 - dd$REP1) / dd$REP1
@@ -1318,7 +1344,7 @@ shinyServer(
                     dd$TOT_SH <- msh1 * (dd$TOTAL2 - dd$TOTAL1)
                 }
             }
-            if (input$units == "Percent"){
+            if (units == "Percent"){
                 dd$DEM1 <- 100 * dd$DEM1 / dd$TOTAL1
                 dd$REP1 <- 100 * dd$REP1 / dd$TOTAL1
                 dd$MARGIN1 <- 100 * dd$MARGIN1 / dd$TOTAL1
@@ -1329,7 +1355,7 @@ shinyServer(
                 dd$TOTAL2 <- dd$DEM2 + dd$REP2
             }
             dd6 <<- dd
-            if (input$racey != "Registered"){
+            if (racey != "Registered"){
                 if (input$measure == "Percent change"){
                     dd$DEM_SH <- msh100 * (dd$DEM2 - dd$DEM1) / dd$DEM1
                     dd$REP_SH <- msh100 * (dd$REP2 - dd$REP1) / dd$REP1
@@ -1410,8 +1436,8 @@ shinyServer(
                 }
             }
             gdd <<- dd #DEBUG-RM
-            dd
-        })
+            return(dd)
+        }
         observe({
             eventid <- "Plot"
             loadid <- "plotload"
