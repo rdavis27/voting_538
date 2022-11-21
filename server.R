@@ -671,11 +671,17 @@ shinyServer(
             }
             racex <- paste0(input$racex,"_",input$yearx)
             racey <- paste0(input$racey,"_",input$yeary)
+            if (input$modely == "(same as above)"){
+                modely <- input$model
+            }
+            else{
+                modely <- input$modely
+            }
             if (grepl("_538$", input$racex)){
                 racex <- paste0(input$racex,input$model,"_",input$yearx)
             }
             if (grepl("_538$", input$racey)){
-                racey <- paste0(input$racey,input$model,"_",input$yearx)
+                racey <- paste0(input$racey,modely,"_",input$yearx)
             }
             if (input$racey == "Registered"){
                 title <- paste(tshift, input$party, "Voters for",
@@ -916,7 +922,7 @@ shinyServer(
             append <- FALSE
             for (i in 1:3){
                 for (j in 1:3){
-                    dd <- getdatav(paste0(races[i],"_538"),races[i],models[j],input$units)
+                    dd <- getdatav(paste0(races[i],"_538"),races[i],models[j],models[j],input$units)
                     sheet <- paste0(zraces[i],zmodels[j])
                     write.xlsx(dd, paste0(out_dir,fileout), sheetName = sheet, append = append)
                     append <- TRUE
@@ -1206,10 +1212,16 @@ shinyServer(
                     }
                 }
             }
-            dd <- getdatav(input$racex,input$racey,input$model,input$units)
+            if (input$modely == "(same as above)"){
+                modely <- input$model
+            }
+            else{
+                modely <- input$modely
+            }
+            dd <- getdatav(input$racex,input$racey,input$model,modely,input$units)
             return(dd)
         })
-        getdatav <- function(racex,racey,model,units){
+        getdatav <- function(racex,racey,model,modely,units){
             if (input$flipy){
                 msh1 <- -1
                 msh100 <- -100
@@ -1227,7 +1239,7 @@ shinyServer(
             }
             if (grepl("House_538$", racey) | grepl("Senate_538$", racey) |
                 grepl("President_538$", racey) | grepl("Governor_538$", racey)){
-                filenamey <- paste0(data_dir,racey,model,"_",input$yeary,".csv")
+                filenamey <- paste0(data_dir,racey,modely,"_",input$yeary,".csv")
             }
             else{
                 filenamey <- paste0(data_dir,racey,"_",input$yeary,".csv")
