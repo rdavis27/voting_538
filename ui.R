@@ -56,6 +56,7 @@ shinyUI(pageWithSidebar(
                     selected = "2-party",
                     multiple = FALSE),
         textInput("fpop", "Min pop(k)", value = "0"),
+        numericInput("decplaces", "Decimals", 1, min = -1),
         checkboxInput("fullstate","Show full state",value = FALSE),
         checkboxInput("dronly","Dem+Rep Only",value = FALSE),
         checkboxInput("createfiles","Create Data Files",value = FALSE),
@@ -90,6 +91,15 @@ shinyUI(pageWithSidebar(
                     textInput("vlimit","Vote Limit (1000s)",value = "1,10,100,1000"),
                     textInput("vshape","Vote Shape",value = "1,10,16,17,15"),
                     textInput("vdesc","Vote Desc",value = "< 1k,>=    1k,>=   10k,>=  100k,>= 1000k"),
+                    selectInput("plotmean", "Plot mean",
+                                choices = c("None","Unweighted"),
+                                selected = "None",
+                                multiple = FALSE),
+                    splitLayout(
+                        numericInput("meanshape", "Mean shape", 12),
+                        numericInput("meansize", "Mean size", 7)
+                    ),
+                    checkboxInput("showlabels","Show labels",value = TRUE),
                     checkboxInput("vuse2","Use Race2 Votes",value = FALSE),
                     splitLayout(
                         numericInput("plotload", "Load", 1),

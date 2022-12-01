@@ -15,7 +15,7 @@ shinyServer(
     function(session,input, output) {
         options(width = 240, readr.show_progress = FALSE)
         options(max.print=999999)
-        
+
         states <- c("Alabama","Alaska","Arizona","Arkansas","California",
                     "Colorado","Connecticut","Delaware","DC","Florida",
                     "Georgia","Hawaii","Idaho","Illinois","Indiana",
@@ -832,21 +832,38 @@ shinyServer(
                     xx$LABEL[xx$TOT1_N < kpop] <- ""
                 }
             }
-            if (input$party == "Democrat"){
-                gg <- gg + annotate("text", x = xx$DEM1, y =xx$DEM_SH, label = xx$LABEL,
-                                    color="red", hjust = 0, vjust = xx$VJUST)
+            if (input$showlabels){
+                if (input$party == "Democrat"){
+                    gg <- gg + annotate("text", x = xx$DEM1, y =xx$DEM_SH, label = xx$LABEL,
+                                        color="red", hjust = 0, vjust = xx$VJUST)
+                }
+                else if (input$party == "Republican"){
+                    gg <- gg + annotate("text", x = xx$REP1, y =xx$REP_SH, label = xx$LABEL,
+                                        color="red", hjust = 0, vjust = xx$VJUST)
+                }
+                else if (input$party == "Total"){
+                    gg <- gg + annotate("text", x = xx$TOTAL1, y =xx$TOT_SH, label = xx$LABEL,
+                                        color="red", hjust = 0, vjust = xx$VJUST)
+                }
+                else{
+                    gg <- gg + annotate("text", x = xx$MARGIN1, y =xx$MAR_SH, label = xx$LABEL,
+                                        color="red", hjust = 0, vjust = xx$VJUST)
+                }
             }
-            else if (input$party == "Republican"){
-                gg <- gg + annotate("text", x = xx$REP1, y =xx$REP_SH, label = xx$LABEL,
-                                    color="red", hjust = 0, vjust = xx$VJUST)
-            }
-            else if (input$party == "Total"){
-                gg <- gg + annotate("text", x = xx$TOTAL1, y =xx$TOT_SH, label = xx$LABEL,
-                                    color="red", hjust = 0, vjust = xx$VJUST)
-            }
-            else{
-                gg <- gg + annotate("text", x = xx$MARGIN1, y =xx$MAR_SH, label = xx$LABEL,
-                                    color="red", hjust = 0, vjust = xx$VJUST)
+            if (input$plotmean != "None"){
+                xxr <- xx[xx$Party == vparty[1],]
+                xxrx <- mean(xxr[[party1]])
+                xxry <- mean(xxr[[party_sh]])
+                xxd <- xx[xx$Party == vparty[length(vparty)],]
+                xxdx <- mean(xxd[[party1]])
+                xxdy <- mean(xxd[[party_sh]])
+                meanxy <- c(xxrx,xxry,xxdx,xxdy)
+                zmeanxy <<- meanxy #DEBUG-RM
+                print(zmeanxy)
+                zxxr <<- xxr #DEBUG-RM
+                zxxd <<- xxd #DEBUG-RM
+                gg <- gg + geom_point(aes(x=xxrx, y=xxry),color="black",shape=input$meanshape,size=input$meansize)
+                gg <- gg + geom_point(aes(x=xxdx, y=xxdy),color="black",shape=input$meanshape,size=input$meansize)
             }
             xx <- NULL
             yy <- NULL
@@ -913,16 +930,22 @@ shinyServer(
             models <- c("_deluxe","_classic","_lite")
             zraces  <- c("Hous","Sen","Gov")
             zmodels <- c("_dlux","_clas","_lite")
+            dp <- input$decplaces
             if (input$tnote == ""){
-                fileout <- paste0(input$measure,"_",input$yearx,"_",input$units,".xlsx")
+                fileout <- paste0(input$measure,"_",input$yearx,"_",input$units,"_",dp,".xlsx")
             }
             else{
-                fileout <- paste0(input$measure,"_",input$yearx,"_",input$units,"_",input$tnote,".xlsx")
+                fileout <- paste0(input$measure,"_",input$yearx,"_",input$units,"_",dp,"_",input$tnote,".xlsx")
             }
             append <- FALSE
             for (i in 1:3){
                 for (j in 1:3){
                     dd <- getdatav(paste0(races[i],"_538"),races[i],models[j],models[j],input$units)
+                    if (dp >= 0){
+                        for (k in 2:NCOL(dd)){
+                            dd[,k] <- format(round(dd[,k], dp), big.mark=",", scientific=FALSE)
+                        }
+                    }
                     sheet <- paste0(zraces[i],zmodels[j])
                     write.xlsx(dd, paste0(out_dir,fileout), sheetName = sheet, append = append)
                     append <- TRUE
@@ -941,9 +964,11 @@ shinyServer(
             }
             dd <- dd[,1:(NCOL(dd)-4)]
             # Format decimal numbers into character strings
-            dp <- 2
-            for (i in 2:NCOL(dd)){
-                dd[,i] <- format(round(dd[,i], dp), big.mark=",", scientific=FALSE)
+            dp <- input$decplaces
+            if (dp >= 0){
+                for (i in 2:NCOL(dd)){
+                    dd[,i] <- format(round(dd[,i], dp), big.mark=",", scientific=FALSE)
+                }
             }
             if (input$writeoutput){
                 # fileout <- paste0(input$measure,"_",input$yearx,"_",input$racex,"_",
