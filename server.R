@@ -279,8 +279,8 @@ shinyServer(
             xx <- xx[,1:(NCOL(xx)-1)]
             namesxx <- names(xx)
             names(xx)[2:3] <- c("Biden","Trump")
-            write(paste(namesxx, collapse = " "), paste0(data_dir,"President_538_2020.csv"))
-            write_delim(xx, paste0(data_dir,"President_538_2020.csv"), append = TRUE, col_names = TRUE)
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"President_538",model,"_2020.csv"))
+            write_delim(xx, paste0(data_dir,"President_538",model,"_2020.csv"), append = TRUE, col_names = TRUE)
         }
         createHouse538_18 <- function(model){
             xx0 <- read_csv(paste0(input_dir,"house_district_forecast.csv"))
@@ -1339,7 +1339,10 @@ shinyServer(
                                 sum(dd$DEM2,na.rm=TRUE),sum(dd$REP2,na.rm=TRUE),
                                 sum(dd$MARGIN2,na.rm=TRUE),sum(dd$TOTAL2,na.rm=TRUE))
             names(ddtot) <- names(dd)
-            dd <- rbind(dd, ddtot)
+            if (!input$model %in% c("_exitpoll","_combined","_polls") &
+                !input$modely %in% c("_exitpoll","_combined","_polls")){
+                dd <- rbind(dd, ddtot)
+            }
             dd4 <<- dd
             DEM1_N <- dd$DEM1
             REP1_N <- dd$REP1
@@ -1382,12 +1385,29 @@ shinyServer(
                 }
             }
             if (units == "Percent"){
-                dd$DEM1 <- 100 * dd$DEM1 / dd$TOTAL1
-                dd$REP1 <- 100 * dd$REP1 / dd$TOTAL1
-                dd$MARGIN1 <- 100 * dd$MARGIN1 / dd$TOTAL1
-                dd$DEM2 <- 100 * dd$DEM2 / dd$TOTAL2
-                dd$REP2 <- 100 * dd$REP2 / dd$TOTAL2
-                dd$MARGIN2 <- 100 * dd$MARGIN2 / dd$TOTAL2
+                if (min(dd$REP1[!is.na(dd$REP1)]) == 0 & max(dd$REP1[!is.na(dd$REP1)]) == 0){
+                    dd$MARGIN1 <- dd$DEM1
+                    dd$REP1 <- 50 - (dd$DEM1/2)
+                    dd$DEM1 <- 50 + (dd$DEM1/2)
+                }
+                else if (input$model == "_exitpoll"){
+                    #dd$MARGIN1 <- dd$DEM1 - dd$REP
+                }
+                else{
+                    dd$DEM1 <- 100 * dd$DEM1 / dd$TOTAL1
+                    dd$REP1 <- 100 * dd$REP1 / dd$TOTAL1
+                    dd$MARGIN1 <- 100 * dd$MARGIN1 / dd$TOTAL1
+                }
+                if (min(dd$REP2[!is.na(dd$REP2)]) == 0 & max(dd$REP2[!is.na(dd$REP2)]) == 0){
+                    dd$MARGIN2 <- dd$DEM2
+                    dd$REP2 <- 50 - (dd$DEM2/2)
+                    dd$DEM2 <- 50 + (dd$DEM2/2)
+                }
+                else{
+                    dd$DEM2 <- 100 * dd$DEM2 / dd$TOTAL2
+                    dd$REP2 <- 100 * dd$REP2 / dd$TOTAL2
+                    dd$MARGIN2 <- 100 * dd$MARGIN2 / dd$TOTAL2
+                }
                 dd$TOTAL1 <- dd$DEM1 + dd$REP1
                 dd$TOTAL2 <- dd$DEM2 + dd$REP2
             }
@@ -1615,6 +1635,18 @@ shinyServer(
             aparms <- data.frame(version, label, value)
             parms <- rbind(parms, aparms)
             write_csv(parms, filename)
+        })
+        observeEvent(input$yearx,{
+            if (input$yearx == 2016){
+                updateSelectInput(session=session,"model","538 Model",
+                                  choices = c("_exitpoll","_combined","_polls"),
+                                  selected = "_polls")
+            }
+            else{
+                updateSelectInput(session=session,"model","538 Model",
+                                  choices = c("_lite","_classic","_deluxe"),
+                                  selected = "_deluxe")
+            }
         })
         observe({
             cat(file=stderr(), paste0("v3: ",input$state2," ",input$tabs,"\n"))
