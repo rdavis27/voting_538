@@ -452,6 +452,58 @@ shinyServer(
             write(paste(namesxx, collapse = " "), paste0(data_dir,"President_2012.csv"))
             write_delim(xx, paste0(data_dir,"President_2012.csv"), append = TRUE, col_names = TRUE)
         }
+        createPresident04 <- function(){
+            xx0 <- read_csv(paste0(input_dir,"1976-2020-president.csv"))
+            xx1 <- xx0[xx0$year == 2004,]
+            xx <- data.frame(unique(xx1$state_po))
+            names(xx) <- "AREA"
+            xx$DEM <- 0
+            xx$REP <- 0
+            xx$OTH <- 0
+            xx$OVERVOTES <- 0
+            xx$UNDERVOTES <- 0
+            xx$BLANKVOTES <- 0
+            xx$TOT <- 0
+            for (i in 1:NROW(xx1)){
+                party_simplified <<- xx1$party_simplified[i]
+                party_detailed <<- xx1$party_detailed[i]
+                candidate <<- xx1$candidate[i]
+                if (xx1$party_simplified[i] == "DEMOCRAT"){
+                    xx$DEM[xx$AREA == xx1$state_po[i]] <- max(
+                        xx$DEM[xx$AREA == xx1$state_po[i]],xx1$candidatevotes[i])
+                }
+                else if (xx1$party_simplified[i] == "REPUBLICAN"){
+                    xx$REP[xx$AREA == xx1$state_po[i]] <- max(
+                        xx$REP[xx$AREA == xx1$state_po[i]],xx1$candidatevotes[i])
+                }
+                else if (is.na(xx1$candidate[i]) & (is.na(xx1$writein[i]) | xx1$writein[i])){ #check NA for line 274 (4015)
+                    xx$OTH[xx$AREA == xx1$state_po[i]] <- xx$OTH[xx$AREA == xx1$state_po[i]] + xx1$candidatevotes[i]
+                }
+                # else if (is.na(xx1$candidate[i]) & party_detailed == "UNENROLLED"){
+                #     #ignore for now
+                # }
+                else if (is.na(xx1$candidate[i])){
+                    #ignore for now
+                }
+                else if (xx1$candidate[i] == "OVERVOTES"){
+                    xx$OVERVOTES[xx$AREA == xx1$state_po[i]] <- xx1$candidatevotes[i]
+                }
+                else if (xx1$candidate[i] == "UNDERVOTES"){
+                    xx$UNDERVOTES[xx$AREA == xx1$state_po[i]] <- xx1$candidatevotes[i]
+                }
+                else if (xx1$candidate[i] == "BLANK VOTES"){
+                    xx$BLANKVOTES[xx$AREA == xx1$state_po[i]] <- xx1$candidatevotes[i]
+                }
+                else{
+                    xx$OTH[xx$AREA == xx1$state_po[i]] <- xx$OTH[xx$AREA == xx1$state_po[i]] + xx1$candidatevotes[i]
+                }
+            }
+            xx <- xx[,1:4]
+            namesxx <- names(xx)
+            names(xx)[2:3] <- c("Obama","Romney")
+            write(paste(namesxx, collapse = " "), paste0(data_dir,"President_2004.csv"))
+            write_delim(xx, paste0(data_dir,"President_2004.csv"), append = TRUE, col_names = TRUE)
+        }
         createSenate20 <- function(){
             xx0 <- read_csv(paste0(input_dir,"1976-2020-senate.csv"))
             xx1 <- xx0[xx0$year == 2020 | xx0$year == 2021,] # 2021 for GA runoff
@@ -1232,6 +1284,10 @@ shinyServer(
                         createPresident12()
                         createHouseNN(year)
                     }
+                    else if (year == 2004){
+                        createPresident04()
+                        createHouseNN(year)
+                    }
                     else if (year %in% ayear){
                         createHouseNN(year)
                     }
@@ -1637,10 +1693,10 @@ shinyServer(
             write_csv(parms, filename)
         })
         observeEvent(input$yearx,{
-            if (input$yearx == 2016){
+            if (input$yearx == 2016 | input$yearx == 2004){
                 updateSelectInput(session=session,"model","538 Model",
                                   choices = c("_exitpoll","_combined","_polls"),
-                                  selected = "_polls")
+                                  selected = "_exitpoll")
             }
             else{
                 updateSelectInput(session=session,"model","538 Model",
