@@ -1693,9 +1693,19 @@ shinyServer(
             write_csv(parms, filename)
         })
         observeEvent(input$yearx,{
-            if (input$yearx == 2016 | input$yearx == 2004){
+            if (input$yearx == 2020){
+                updateSelectInput(session=session,"model","538 Model",
+                                  choices = c("_exitpoll","_lite","_classic","_deluxe"),
+                                  selected = "_exitpoll")
+            }
+            else if (input$yearx == 2016){
                 updateSelectInput(session=session,"model","538 Model",
                                   choices = c("_exitpoll","_combined","_polls"),
+                                  selected = "_exitpoll")
+            }
+            else if (input$yearx == 2004){
+                updateSelectInput(session=session,"model","538 Model",
+                                  choices = c("_exitpoll"),
                                   selected = "_exitpoll")
             }
             else{
